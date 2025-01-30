@@ -20,22 +20,40 @@ public class UserDAO {
 
     public static boolean createUser(String firstName, String lastName) {
         String sql = "INSERT INTO User (first_name, last_name) VALUES (?, ?)";
+
         try (Connection conn = DatabaseConnection.getConnection()) {
             if (conn == null) {
                 LOGGER.severe("Error: Not able to establish connection to MariaDB.");
                 return false;
             }
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            // Usar RETURN_GENERATED_KEYS para recuperar o ID gerado
+            try (PreparedStatement stmt = conn.prepareStatement(sql, PreparedStatement.RETURN_GENERATED_KEYS)) {
                 stmt.setString(1, firstName);
                 stmt.setString(2, lastName);
                 stmt.executeUpdate();
-                LOGGER.info("User created successfully: " + firstName + " " + lastName);
-                return true;
+
+                // Obter o ID gerado
+                ResultSet rs = stmt.getGeneratedKeys();
+                if (rs.next()) {
+                    int userId = rs.getInt(1);
+                    LOGGER.info("User created successfully with ID: " + userId);
+
+                    // Criar automaticamente a carteira
+                    boolean walletCreated = WalletDAO.createWallet(userId, 0.0);
+                    if (walletCreated) {
+                        LOGGER.info("Wallet created for user ID: " + userId);
+                    } else {
+                        LOGGER.warning("Failed to create wallet for user ID: " + userId);
+                    }
+                    return true;
+                }
             }
         } catch (SQLException e) {
             LOGGER.log(Level.SEVERE, "Error: Unable to create user.", e);
             return false;
         }
+        return false;
     }
 
     public static User getUserByID(int id) {
