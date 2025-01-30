@@ -7,7 +7,7 @@ import dao.UserDAO;
 import java.io.IOException;
 import java.io.OutputStream;
 
-public class UserHandler implements HttpHandler {
+public class CreateUserHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {

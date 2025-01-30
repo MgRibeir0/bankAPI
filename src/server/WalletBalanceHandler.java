@@ -8,7 +8,7 @@ import model.Wallet;
 import java.io.IOException;
 import java.io.OutputStream;
 
-public class WalletHandler implements HttpHandler {
+public class WalletBalanceHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -28,14 +28,6 @@ public class WalletHandler implements HttpHandler {
             OutputStream os = exchange.getResponseBody();
             os.write(response.getBytes());
             os.close();
-
-        } else if ("POST".equalsIgnoreCase(method)) {
-            String response = "To be implemented.";
-            exchange.sendResponseHeaders(501, response.getBytes().length);
-            OutputStream os = exchange.getResponseBody();
-            os.write(response.getBytes());
-            os.close();
-
         } else {
             exchange.sendResponseHeaders(405, -1);
         }
