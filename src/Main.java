@@ -1,4 +1,4 @@
-import server.WalletAPIServer;
+import server.BankAPIServer;
 
 import java.io.IOException;
 import java.util.logging.Level;
@@ -11,7 +11,7 @@ public class Main {
     public static void main(String[] args) {
 
         try {
-            WalletAPIServer.main(args);
+            BankAPIServer.main(args);
         } catch (IOException e) {
             LOGGER.log(Level.INFO, "Error while starting server", e);
         }
