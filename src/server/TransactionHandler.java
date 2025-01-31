@@ -1,5 +1,6 @@
 package server;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.sun.net.httpserver.HttpExchange;
@@ -10,7 +11,10 @@ import server.util.ResponseUtil;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -122,14 +126,66 @@ public class TransactionHandler implements HttpHandler {
 
     private void getTransactions(HttpExchange exchange) throws IOException {
         try {
+            String query = exchange.getRequestURI().getQuery();
+            Map<String, String> params = parseQuery(query);
 
-            JsonObject responseJson = new JsonObject();
-            responseJson.addProperty("message", "List of transactions");
-            responseJson.addProperty("status", ResponseUtil.ResponseStatus.SUCCESS.getValue());
+            int userId = Integer.parseInt(params.get("userId"));
+            String startDate = params.get("startDate"); // Opcional
+            String endDate = params.get("endDate"); // Opcional
 
-            ResponseUtil.sendResponse(exchange, responseJson, 200);
+            String sql = "SELECT * FROM transactions WHERE (fromUserId = ? OR toUserId = ?)";
+            if (startDate != null && endDate != null) {
+                sql += " AND timestamp BETWEEN ? AND ?";
+            }
+
+            try (Connection conn = DatabaseConnection.getConnection()) {
+                assert conn != null;
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                    stmt.setInt(1, userId);
+                    stmt.setInt(2, userId);
+
+                    if (startDate != null && endDate != null) {
+                        stmt.setString(3, startDate);
+                        stmt.setString(4, endDate);
+                    }
+
+                    ResultSet rs = stmt.executeQuery();
+
+                    JsonArray transactions = new JsonArray();
+                    while (rs.next()) {
+                        JsonObject transaction = new JsonObject();
+                        transaction.addProperty("id", rs.getInt("id"));
+                        transaction.addProperty("fromUserId", rs.getInt("fromUserId"));
+                        transaction.addProperty("toUserId", rs.getInt("toUserId"));
+                        transaction.addProperty("amount", rs.getDouble("amount"));
+                        transaction.addProperty("timestamp", rs.getTimestamp("timestamp").toString());
+                        transactions.add(transaction);
+                    }
+
+                    JsonObject responseJson = new JsonObject();
+                    responseJson.add("transactions", transactions);
+                    responseJson.addProperty("status", ResponseUtil.ResponseStatus.SUCCESS.getValue());
+
+                    ResponseUtil.sendResponse(exchange, responseJson, 200);
+                }
+            }
+
         } catch (Exception e) {
-            ResponseUtil.sendResponse(exchange, "Invalid request data.", ResponseUtil.ResponseStatus.ERROR, 400);
+            ResponseUtil.sendResponse(exchange, "Invalid request data: " + e.getMessage(), ResponseUtil.ResponseStatus.ERROR, 400);
         }
+    }
+
+    private Map<String, String> parseQuery(String query) {
+        Map<String, String> params = new HashMap<>();
+        if (query != null) {
+            for (String param : query.split("&")) {
+                String[] pair = param.split("=");
+                if (pair.length > 1) {
+                    params.put(pair[0], pair[1]);
+                }
+            }
+        }
+        return params;
     }
 }
